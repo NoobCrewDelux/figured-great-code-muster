@@ -7,6 +7,7 @@ const classes = ref([]);
 const records = ref([]);
 const farms = ref([]);
 const selectedFarmId = ref(null);
+const stockFarmId = ref(null);
 const farmMenuOpen = ref(false);
 const loading = ref(true);
 const saving = ref(false);
@@ -42,7 +43,8 @@ async function load() {
     classes.value = stockData.classes;
     records.value = stockData.records;
     farms.value = farmData;
-    selectedFarmId.value = farmData.find((farm) => farm.name === 'Kahikatea Downs')?.id ?? farmData[0]?.id ?? null;
+    stockFarmId.value = stockData.farm_id;
+    selectedFarmId.value = stockData.farm_id ?? farmData[0]?.id ?? null;
     if (!movementForm.value.stock_class_id) {
         movementForm.value.stock_class_id = stockData.classes[0]?.id ?? null;
     }
@@ -111,8 +113,13 @@ const canSave = computed(
 );
 
 const selectedFarm = computed(() => farms.value.find((farm) => farm.id === selectedFarmId.value));
+const hasStockData = computed(() => selectedFarmId.value === stockFarmId.value);
 
 function selectFarm(farmId) {
+    if (farmId !== selectedFarmId.value) {
+        dismissReview();
+        suggestError.value = '';
+    }
     selectedFarmId.value = farmId;
     farmMenuOpen.value = false;
 }
@@ -253,7 +260,7 @@ const corroborationBadge = {
                             aria-haspopup="listbox"
                             :aria-expanded="farmMenuOpen"
                             class="flex min-w-56 items-center justify-between gap-3 rounded border border-fg-muted-grey bg-white px-3 py-1.5 text-left text-sm hover:border-fg-main-blue disabled:opacity-50"
-                            :disabled="loading || farms.length === 0"
+                            :disabled="loading || suggesting || farms.length === 0"
                             @click="farmMenuOpen = !farmMenuOpen"
                         >
                             <span>{{ selectedFarm?.name ?? 'Select a farm' }}</span>
@@ -287,7 +294,7 @@ const corroborationBadge = {
             </div>
             <button
                 class="shrink-0 rounded bg-fg-main-blue px-4 py-1.5 text-sm font-medium text-white hover:bg-fg-main-blue-hover disabled:opacity-50"
-                :disabled="suggesting || loading"
+                :disabled="suggesting || loading || !hasStockData"
                 @click="suggest"
             >
                 {{ suggesting ? 'Reading the paper trail…' : 'Read the paper trail' }}
@@ -299,7 +306,7 @@ const corroborationBadge = {
         </p>
 
         <!-- The review queue. Nothing here has been saved yet. -->
-        <div v-if="reviewed" class="mb-4 rounded border border-fg-main-blue-30 bg-fg-main-blue-9 p-4">
+        <div v-if="reviewed && hasStockData" class="mb-4 rounded border border-fg-main-blue-30 bg-fg-main-blue-9 p-4">
             <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                 <h3 class="font-semibold">
                     Suggested from the paper trail
@@ -482,6 +489,16 @@ const corroborationBadge = {
         </div>
 
         <p v-if="loading" class="text-fg-light-grey">Loading…</p>
+
+        <div
+            v-else-if="!hasStockData"
+            class="rounded border border-fg-muted-grey bg-white px-6 py-10 text-center"
+        >
+            <h3 class="font-semibold">No stock reconciliation data for {{ selectedFarm?.name }}</h3>
+            <p class="mt-1 text-sm text-fg-mid-grey">
+                The seeded stock records are available for Kahikatea Downs only.
+            </p>
+        </div>
 
         <div v-else class="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div class="space-y-4">
