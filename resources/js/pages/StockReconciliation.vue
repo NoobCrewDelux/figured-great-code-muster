@@ -5,6 +5,10 @@ import { money, shortDate } from '../format';
 
 const classes = ref([]);
 const records = ref([]);
+// Corroborating records from the rest of the practice database, with a
+// client-side filter for the cross-reference panel.
+const crossRecords = ref([]);
+const crossFilter = ref('All');
 const farms = ref([]);
 const selectedFarmId = ref(null);
 const stockFarmId = ref(null);
@@ -45,6 +49,7 @@ async function load() {
     ]);
     classes.value = stockData.classes;
     records.value = stockData.records;
+    crossRecords.value = stockData.cross_records ?? [];
     farms.value = farmData;
     stockFarmId.value = stockData.farm_id;
     selectedFarmId.value = stockData.farm_id ?? farmData[0]?.id ?? null;
