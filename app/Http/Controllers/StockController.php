@@ -38,6 +38,7 @@ class StockController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
+            'farm_id' => Farm::where('name', self::FARM)->value('id'),
             'classes' => StockClass::with('movements')->orderBy('id')->get(),
             'records' => StockRecord::orderBy('recorded_on')->orderBy('id')->get(),
         ]);
