@@ -9,6 +9,10 @@ const records = ref([]);
 // client-side filter for the cross-reference panel.
 const crossRecords = ref([]);
 const crossFilter = ref('All');
+// Collapsed by default, with a faded peek of the next few records rather than
+// a hard cut-off — see the mask-image on the list below.
+const paperTrailExpanded = ref(false);
+const crossRecordsExpanded = ref(false);
 const farms = ref([]);
 const selectedFarmId = ref(null);
 const stockFarmId = ref(null);
@@ -1008,41 +1012,74 @@ const corroborationBadge = {
                 </div>
             </div>
 
-            <!-- Raw source records -->
+            <!-- Raw source records. Collapsed by default — with a faded peek of the
+                 next few records rather than a hard cut-off, so it reads as "more
+                 below" rather than "that's all of it". -->
             <div class="rounded border border-fg-muted-grey bg-white">
-                <h3 class="border-b border-fg-pale-grey px-4 py-2 text-sm font-semibold">The paper trail</h3>
-                <ul>
-                    <li
-                        v-for="record in records"
-                        :key="record.id"
-                        class="border-b border-fg-pale-grey px-4 py-2 text-sm"
-                        :class="{
-                            'border-l-4 border-l-fg-main-blue': citedRecordIds.has(record.id),
-                            'border-l-4 border-l-fg-warning': skippedRecordIds.has(record.id),
-                        }"
-                    >
-                        <div class="mb-0.5 flex items-center gap-2">
-                            <span class="text-xs text-fg-light-grey">{{ shortDate(record.recorded_on) }}</span>
-                            <span class="rounded-full px-2 py-0.5 text-xs" :class="sourceBadgeClass[record.source]">
-                                {{ record.source }}
-                            </span>
-                            <span v-if="skippedRecordIds.has(record.id)" class="text-xs font-medium text-fg-warning-text">
-                                ignored
-                            </span>
-                        </div>
-                        <p class="leading-snug">{{ record.body }}</p>
-                    </li>
-                </ul>
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-between gap-2 border-b border-fg-pale-grey px-4 py-2 text-left text-sm font-semibold"
+                    @click="paperTrailExpanded = !paperTrailExpanded"
+                >
+                    <span>The paper trail <span class="font-normal text-fg-light-grey">— {{ records.length }} record(s)</span></span>
+                    <span class="text-xs font-normal text-fg-main-blue">{{ paperTrailExpanded ? 'Show less ▴' : 'Show all ▾' }}</span>
+                </button>
+
+                <div
+                    class="overflow-hidden"
+                    :class="paperTrailExpanded ? '' : 'max-h-80'"
+                    :style="
+                        paperTrailExpanded
+                            ? ''
+                            : 'mask-image: linear-gradient(to bottom, black 55%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);'
+                    "
+                >
+                    <ul>
+                        <li
+                            v-for="record in records"
+                            :key="record.id"
+                            class="border-b border-fg-pale-grey px-4 py-2 text-sm"
+                            :class="{
+                                'border-l-4 border-l-fg-main-blue': citedRecordIds.has(record.id),
+                                'border-l-4 border-l-fg-warning': skippedRecordIds.has(record.id),
+                            }"
+                        >
+                            <div class="mb-0.5 flex items-center gap-2">
+                                <span class="text-xs text-fg-light-grey">{{ shortDate(record.recorded_on) }}</span>
+                                <span class="rounded-full px-2 py-0.5 text-xs" :class="sourceBadgeClass[record.source]">
+                                    {{ record.source }}
+                                </span>
+                                <span v-if="skippedRecordIds.has(record.id)" class="text-xs font-medium text-fg-warning-text">
+                                    ignored
+                                </span>
+                            </div>
+                            <p class="leading-snug">{{ record.body }}</p>
+                        </li>
+                    </ul>
+                </div>
 
                 <!-- The second paper trail. Everything the reconciliation was checked
                      against, pulled straight from the rest of the practice's database.
-                     This is the same set of rows the model is given. -->
+                     This is the same set of rows the model is given. Collapsed by
+                     default with the same faded-peek treatment as the paper trail
+                     above, rather than a hard cut-off. -->
                 <div class="border-t-4 border-fg-pale-grey">
+                    <button
+                        type="button"
+                        class="flex w-full items-center justify-between gap-2 border-b border-fg-pale-grey px-4 py-2 text-left text-sm font-semibold"
+                        @click="crossRecordsExpanded = !crossRecordsExpanded"
+                    >
+                        <span
+                            >Cross-referenced records
+                            <span class="font-normal text-fg-light-grey">— {{ crossRecords.length }} from the rest of the books</span></span
+                        >
+                        <span class="text-xs font-normal text-fg-main-blue">{{ crossRecordsExpanded ? 'Show less ▴' : 'Show all ▾' }}</span>
+                    </button>
+
                     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fg-pale-grey px-4 py-2">
-                        <h3 class="text-sm font-semibold">
-                            Cross-referenced records
-                            <span class="font-normal text-fg-light-grey">— {{ crossRecords.length }} from the rest of the books</span>
-                        </h3>
+                        <p class="text-xs text-fg-mid-grey">
+                            Corroboration only — these can confirm or contradict a movement, but never create one.
+                        </p>
                         <div class="flex flex-wrap gap-1">
                             <button
                                 v-for="kind in crossKinds"
@@ -1060,42 +1097,48 @@ const corroborationBadge = {
                         </div>
                     </div>
 
-                    <p class="border-b border-fg-pale-grey bg-fg-super-pale-grey px-4 py-1.5 text-xs text-fg-mid-grey">
-                        Corroboration only — these can confirm or contradict a movement, but never create one.
-                    </p>
-
-                    <ul>
-                        <li
-                            v-for="(record, i) in visibleCrossRecords"
-                            :key="i"
-                            class="border-b border-fg-pale-grey px-4 py-2 text-sm"
-                        >
-                            <div class="mb-0.5 flex flex-wrap items-center gap-2">
-                                <span class="text-xs text-fg-light-grey">{{
-                                    record.recorded_on ? shortDate(record.recorded_on) : 'undated'
-                                }}</span>
-                                <span class="rounded-full px-2 py-0.5 text-xs" :class="crossBadgeClass[record.kind]">
-                                    {{ record.kind }}
-                                </span>
-                                <span
-                                    v-if="!record.scoped"
-                                    class="rounded-full bg-fg-warning-15 px-2 py-0.5 text-xs text-fg-warning-text"
-                                    title="bank_transactions has no farm column — this feed carries more than one client"
-                                >
-                                    not farm-scoped
-                                </span>
-                                <span
-                                    v-if="record.amount !== null"
-                                    class="ml-auto font-mono text-xs"
-                                    :class="record.amount < 0 ? 'text-fg-danger-dark' : 'text-fg-positive-dark'"
-                                >
-                                    {{ money(record.amount) }}
-                                </span>
-                            </div>
-                            <p class="font-medium leading-snug">{{ record.title }}</p>
-                            <p class="text-xs leading-snug text-fg-mid-grey">{{ record.body }}</p>
-                        </li>
-                    </ul>
+                    <div
+                        class="overflow-hidden"
+                        :class="crossRecordsExpanded ? '' : 'max-h-80'"
+                        :style="
+                            crossRecordsExpanded
+                                ? ''
+                                : 'mask-image: linear-gradient(to bottom, black 55%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);'
+                        "
+                    >
+                        <ul>
+                            <li
+                                v-for="(record, i) in visibleCrossRecords"
+                                :key="i"
+                                class="border-b border-fg-pale-grey px-4 py-2 text-sm"
+                            >
+                                <div class="mb-0.5 flex flex-wrap items-center gap-2">
+                                    <span class="text-xs text-fg-light-grey">{{
+                                        record.recorded_on ? shortDate(record.recorded_on) : 'undated'
+                                    }}</span>
+                                    <span class="rounded-full px-2 py-0.5 text-xs" :class="crossBadgeClass[record.kind]">
+                                        {{ record.kind }}
+                                    </span>
+                                    <span
+                                        v-if="!record.scoped"
+                                        class="rounded-full bg-fg-warning-15 px-2 py-0.5 text-xs text-fg-warning-text"
+                                        title="bank_transactions has no farm column — this feed carries more than one client"
+                                    >
+                                        not farm-scoped
+                                    </span>
+                                    <span
+                                        v-if="record.amount !== null"
+                                        class="ml-auto font-mono text-xs"
+                                        :class="record.amount < 0 ? 'text-fg-danger-dark' : 'text-fg-positive-dark'"
+                                    >
+                                        {{ money(record.amount) }}
+                                    </span>
+                                </div>
+                                <p class="font-medium leading-snug">{{ record.title }}</p>
+                                <p class="text-xs leading-snug text-fg-mid-grey">{{ record.body }}</p>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
